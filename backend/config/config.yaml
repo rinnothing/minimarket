@@ -1,0 +1,7 @@
+name: minimarket
+env: dev
+security:
+  algorithm: HS256
+  access_token_expire_minutes: 30
+oapi:
+  oapi_path: /oapi
