@@ -2,6 +2,9 @@ from uuid import UUID
 
 from model import Good, GoodsList, GoodNotBelongsError, LookFilter
 
+import logging
+logger = logging.getLogger(__name__)
+
 class GoodRepo:
     def add_good(this, good: Good) -> Good:
         raise NotImplementedError
@@ -25,7 +28,9 @@ class GoodUsecase:
     def publish_good(this, user_id: UUID, good: Good) -> Good:
         good = good.model_copy(update={"id": None, "owner_id": user_id})
 
-        return this.good.add_good(good)
+        good = this.good.add_good(good)
+        logger.info("published new good %s from user %s", good, user_id)
+        return good
     
     def get_good(this, good_id: UUID) -> Good:
         return this.good.get_good(good_id)
@@ -38,7 +43,9 @@ class GoodUsecase:
             raise GoodNotBelongsError(good_id, user_id)
         
         good.owner_id = user_id
-        return this.good.update_good(good_id, good)
+        good = this.good.update_good(good_id, good)
+        logger.info("update info of good %s owned by user %s", good, user_id)
+        return good
     
     def delete_good(this, user_id: UUID, good_id: UUID):
         good = this.good.get_good(good_id)
@@ -47,6 +54,7 @@ class GoodUsecase:
             raise GoodNotBelongsError(good_id, user_id)
 
         this.good.delete_good(good_id)
+        logger.info("remove good with id %s owned by user %s", good_id, user_id)
 
     def look_good(this, filter: LookFilter) -> GoodsList:
         return this.good.look_good(filter)

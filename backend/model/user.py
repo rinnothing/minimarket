@@ -14,3 +14,7 @@ class User(BaseModel):
     email: NameEmail
     telegram: str
     active: bool
+
+def safe_print_user(user: User) -> User:
+    user = user.model_copy(update={"hashed_password": None})
+    return user

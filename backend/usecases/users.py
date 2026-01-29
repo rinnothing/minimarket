@@ -4,11 +4,14 @@ import string
 
 from pydantic import NameEmail, BaseModel
 
-from model import User, Good, Message, ActiveTime, NoConfirmationSourceError, ConfirmationInUseError, IncorrectOldPasswordError
+from model import User, Good, Message, ActiveTime, NoConfirmationSourceError, ConfirmationInUseError, IncorrectOldPasswordError, safe_print_user
 
 from utils.security import get_password_hash, verify_password
 
 from utils.late_executor import LateExecutor
+
+import logging
+logger = logging.getLogger(__name__)
 
 class UserRepo:
     def add_nonactive(this, user: User) -> User:
@@ -79,11 +82,13 @@ class UserUsecase:
 
         def callback_activate(user_id: UUID):
             this.user.activate(user_id)
+            logger.info("activated user with id %s", user_id)
 
         late_executor.register_task(ACTIVATE_CALLBACK, callback_activate)
 
         def callback_update(user: User):
             this.user.update_user(user)
+            logger.info("updated user %s", safe_print_user(user))
 
         late_executor.register_task(UPDATE_CALLBACK, callback_update)
 
@@ -98,6 +103,7 @@ class UserUsecase:
                 this.mail.notify(user.email, f"Your new password is {password}")
             elif user.telegram:
                 this.telegram.notify(user.telegram, f"Your new password is {password}")
+            logger.info("reset password for user %s", user.id)
 
         late_executor.register_task(RESET_PASSWORD_CALLBACK, callback_reset_password)
 
@@ -110,6 +116,7 @@ class UserUsecase:
                 args.user.telegram = args.telegram
                 
                 this.telegram.confirm_address(args.telegram, "Confirm your new confirmation source", UPDATE_CALLBACK, args.user)
+            logger.info("sent confirmation to the new source for user %s", args.user.id)
 
         late_executor.register_task(UPDATE_CONFIRMATION_CALLBACK, callback_update_confirmation)
 
@@ -131,6 +138,8 @@ class UserUsecase:
                 raise ConfirmationInUseError("telegram", user.telegram)
 
             this.telegram.confirm_address(user.telegram, ACTIVATE_CALLBACK, user.id)
+
+        logger.info("created unactivated user %s", safe_print_user(user))
         
         return user
     
@@ -138,7 +147,9 @@ class UserUsecase:
         return this.user.get_user(id)
     
     def update_user_info(this, id: UUID, name: str | None = None, active_time: str | None = None) -> User:
-        return this.user.update_user_info(this, id, name, active_time)
+        user = this.user.update_user_info(this, id, name, active_time)
+        logger.info("updated user %s", safe_print_user(user))
+        return user
 
     def message_owner(this, message: Message):
         message = message.model_copy(update={"recipient": None})
@@ -151,6 +162,7 @@ class UserUsecase:
             this.mail.notify(owner.email, message, time_window = owner.active_time)
         if owner.telegram:
             this.telegram.notify(owner.telegram, message, time_window = owner.active_time)
+        logger.info("sent message %s", message)
 
     def change_password(this, user_id: UUID, old_password: str, new_password: str):
         user = this.user.get_user(user_id)
@@ -164,6 +176,7 @@ class UserUsecase:
             this.mail.ask(user.email, "Confirm updating your pasword", UPDATE_CALLBACK, user)
         elif user.telegram:
             this.telegram.ask(user.telegram, "Confirm updating your pasword", UPDATE_CALLBACK, user)
+        logger.info("sent confirmation for updating the password for user %s", user_id)
 
     def reset_password(this, username: str):
         user = this.user.get_by_username(username)
@@ -172,6 +185,7 @@ class UserUsecase:
             this.mail.ask(user.email, "Confirm resetting your password", RESET_PASSWORD_CALLBACK, user)
         elif user.telegram:
             this.mail.ask(user.email, "Confirm resetting your password", RESET_PASSWORD_CALLBACK, user)
+        logger.info("sent confirmation for resetting the password for user %s", user.id)
 
     def update_confirmation(this, user_id: UUID, email: NameEmail | None = None, telegram: str | None = None):
         user = this.user.get_user(user_id)
@@ -182,3 +196,4 @@ class UserUsecase:
             this.mail.ask(user.email, "Confirm updating your confirmation source", UPDATE_CONFIRMATION_CALLBACK, args)
         elif user.telegram:
             this.telegram.notify(user.telegram, "Confirm updating your confirmation source", UPDATE_CONFIRMATION_CALLBACK, args)
+        logger.info("sent confirmation to the old source for user %s", user_id)

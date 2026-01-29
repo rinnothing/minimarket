@@ -1,6 +1,9 @@
 from typing import Any
 from uuid import UUID
 
+import logging
+logger = logging.getLogger(__name__)
+
 class TaskArgumentStorage:
     def put(action_id, args) -> UUID:
         raise NotImplementedError
@@ -29,15 +32,20 @@ class LateExecutor:
 
     def register_task(this, action_id, action):
         this.tasks_action_dict[action_id] = action
+        logger.debug("registered action with id %s", action_id)
 
     def put_task(this, action_id, args) -> UUID:
-        return this.arg_storage.put(action_id, args)
+        id = this.arg_storage.put(action_id, args)
+        logger.debug("put new task with aciton_id = %s, id = %s and args = %s", action_id, id, args)
+        return id
     
     def execute_task(this, task_id):
         action_id, args = this.arg_storage.get(task_id)
 
         if action_id not in this.tasks_action_dict:
+            logger.error("action %s not found", action_id)
             raise ActionNotExistsError(action_id)
 
         action_func = this.tasks_action_dict[action_id]
         action_func(args)
+        logger.debug("executed task %s of action %s with args %s", task_id, action_id, args)
