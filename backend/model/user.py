@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from pydantic import BaseModel, NameEmail
 
 class ActiveTime(BaseModel):
@@ -5,8 +7,10 @@ class ActiveTime(BaseModel):
     toHour: int
 
 class User(BaseModel):
+    id: UUID
     name: str
     hashed_pasword: str
-    active_time: ActiveTime | None = None
-    email: NameEmail | None = None
-    telegram: str | None = None
+    active_time: ActiveTime
+    email: NameEmail
+    telegram: str
+    active: bool

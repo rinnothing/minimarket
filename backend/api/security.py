@@ -1,8 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from pwdlib import PasswordHash
-
 import jwt
 from jwt.exceptions import InvalidTokenError
 
@@ -15,15 +13,7 @@ from config import config
 
 from model import User as UserModel
 
-password_hash = PasswordHash.recommended()
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/authorize")
-
-def verify_password(plain_password, hashed_password):
-    return password_hash.verify(plain_password, hashed_password)
-
-def get_password_hash(password):
-    return password_hash.hash(password)
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()

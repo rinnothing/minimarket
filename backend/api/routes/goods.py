@@ -5,9 +5,9 @@ from typing import Annotated
 from pydantic import BaseModel, PositiveFloat
 from pydantic_extra_types.coordinate import Coordinate
 
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Query
 
-from api.security import get_current_user, AuthorizedUser
+from api.security import AuthorizedUser
 
 router = APIRouter(prefix="/goods", tags=["goods"])
 
@@ -28,7 +28,7 @@ class Good(BaseModel):
     owner_id: UUID
 
 @router.post("/publish")
-def publish_good(good: PostGood) -> Good:
+def publish_good(good: PostGood, current_user: AuthorizedUser) -> Good:
     pass
 
 @router.get("/{good_id}")
@@ -58,6 +58,7 @@ class Area(BaseModel):
 class LookParams(BaseModel):
     name: str
     location: Area | None = None
+    user_id: UUID | None = None
 
 def GoodsList(BaseModel):
     array: list[Good]

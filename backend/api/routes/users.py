@@ -9,7 +9,8 @@ from pydantic import BaseModel, NameEmail
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 
-from api.security import Token, verify_password, create_access_token
+from api.security import Token, create_access_token, AuthorizedUser
+from utils.security import verify_password
 
 from config import config
 
@@ -19,7 +20,7 @@ class ActiveTime(BaseModel):
     fromHour: int
     toHour: int
 
-class PostUser(BaseModel):
+class CreateUser(BaseModel):
     name: str
     pasword: str
     active_time: ActiveTime | None = None
@@ -31,7 +32,7 @@ class User(BaseModel):
     active_time: ActiveTime | None = None
 
 @router.post("/register")
-def register_user(user: PostUser) -> User:
+def register_user(user: CreateUser) -> User:
     pass
 
 @router.get("/{user_id}")
@@ -64,3 +65,27 @@ def authorize_user(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]) -
         data={"sub": user.username}, expires_delta=access_token_expires
     )
     return Token(access_token=access_token, token_type="bearer")
+
+class UpdateUser(BaseModel):
+    name: str
+    active_time: ActiveTime | None = None
+
+@router.post("/update")
+def update_user(user: UpdateUser, current_user: AuthorizedUser) -> User:
+    pass
+
+@router.post("/change-password")
+def change_password(old_password: str, new_password: str, current_user: AuthorizedUser):
+    pass
+
+@router.post("/reset-password")
+def reset_password(username: str):
+    pass
+
+class UpdateConfirmation(BaseModel):
+    email: NameEmail | None = None
+    telegram: str | None = None
+
+@router.post("/update-confirmation")
+def update_confirmation(new_confirmation: UpdateConfirmation, current_user: AuthorizedUser):
+    pass
