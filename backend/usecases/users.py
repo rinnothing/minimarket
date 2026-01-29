@@ -2,11 +2,13 @@ from uuid import UUID
 import secrets
 import string
 
-from pydantic import NameEmail
+from pydantic import NameEmail, BaseModel
 
 from model import User, Good, Message, ActiveTime, NoConfirmationSourceError, ConfirmationInUseError, IncorrectOldPasswordError
 
 from utils.security import get_password_hash, verify_password
+
+from utils.late_executor import LateExecutor
 
 class UserRepo:
     def add_nonactive(this, user: User) -> User:
@@ -38,31 +40,78 @@ class GoodRepo:
         raise NotImplementedError
 
 class MailNotifier:
-    def confirm_address(this, email: NameEmail, callback):
+    def confirm_address(this, email: NameEmail, task_id, args):
         raise NotImplementedError
     
-    def ask(this, email: NameEmail, message: str, callback):
+    def ask(this, email: NameEmail, message: str, task_id, args):
         raise NotImplementedError
     
     def notify(this, email: NameEmail, message: Message, time_window: ActiveTime | None = None):
         raise NotImplementedError
 
 class TelegramNotifier:
-    def confirm_address(this, telegram: str, callback):
+    def confirm_address(this, telegram: str, task_id, args):
         raise NotImplementedError
     
-    def ask(this, email: NameEmail, message: str, callback):
+    def ask(this, email: NameEmail, message: str, task_id, args):
         raise NotImplementedError
     
     def notify(this, telegram: str, message: Message, time_window: ActiveTime | None = None):
         raise NotImplementedError
 
+ACTIVATE_CALLBACK = "callback_activate"
+UPDATE_CALLBACK = "callback_update"
+RESET_PASSWORD_CALLBACK = "callback_reset_password"
+UPDATE_CONFIRMATION_CALLBACK = "callback_update_confirmation"
+
+class UpdateConfirmationArguments(BaseModel):
+    user: User
+    email: NameEmail | None = None
+    telegram: str | None = None
+
 class UserUsecase:
-    def __init__(this, user: UserRepo, good: GoodRepo, mail: MailNotifier, telegram: TelegramNotifier):
+    def __init__(this, user: UserRepo, good: GoodRepo, mail: MailNotifier, telegram: TelegramNotifier, late_executor: LateExecutor):
         this.user = user
         this.good = good
         this.mail = mail
         this.telegram = telegram
+        this.late_executor = late_executor
+
+        def callback_activate(user_id: UUID):
+            this.user.activate(user_id)
+
+        late_executor.register_task(ACTIVATE_CALLBACK, callback_activate)
+
+        def callback_update(user: User):
+            this.user.update_user(user)
+
+        late_executor.register_task(UPDATE_CALLBACK, callback_update)
+
+        def callback_reset_password(user: User):
+            alphabet = string.ascii_letters + string.digits
+            password = ''.join(secrets.choice(alphabet) for i in range(20)) 
+
+            user.hashed_pasword = get_password_hash(password)
+            this.user.update_user(user)
+
+            if user.email:
+                this.mail.notify(user.email, f"Your new password is {password}")
+            elif user.telegram:
+                this.telegram.notify(user.telegram, f"Your new password is {password}")
+
+        late_executor.register_task(RESET_PASSWORD_CALLBACK, callback_reset_password)
+
+        def callback_update_confirmation(args: UpdateConfirmationArguments):
+            if args.email:
+                args.user.email = args.email
+
+                this.mail.confirm_address(args.email, "Confirm your new confirmation source", UPDATE_CALLBACK, args.user)
+            elif args.telegram:
+                args.user.telegram = args.telegram
+                
+                this.telegram.confirm_address(args.telegram, "Confirm your new confirmation source", UPDATE_CALLBACK, args.user)
+
+        late_executor.register_task(UPDATE_CONFIRMATION_CALLBACK, callback_update_confirmation)
 
     def register_user(this, user: User, password: str) -> User:
         user = user.model_copy(update={"id": None, "hashed_password": get_password_hash(password), "active": False})
@@ -75,23 +124,13 @@ class UserUsecase:
         if user.email:
             if this.user.is_mail_used(user.email):
                 raise ConfirmationInUseError("email", user.email)
-            
-            # replace callback with something different
-            # now it's just a placeholder for the action
-            def callback_mail():
-                this.user.activate(user.id)
 
-            this.mail.confirm_address(user.email, callback_mail)
+            this.mail.confirm_address(user.email, ACTIVATE_CALLBACK, user.id)
         elif user.telegram:
             if this.user.is_telegram_used(user.telegram):
                 raise ConfirmationInUseError("telegram", user.telegram)
-            
-            # replace callback with something different
-            # now it's just a placeholder for the action
-            def callback_telegram():
-                this.user.activate(user.id)
 
-            this.telegram.confirm_address(user.telegram, callback_telegram)
+            this.telegram.confirm_address(user.telegram, ACTIVATE_CALLBACK, user.id)
         
         return user
     
@@ -120,55 +159,26 @@ class UserUsecase:
             raise IncorrectOldPasswordError(old_password)
         
         user.hashed_pasword = get_password_hash(new_password)
-        
-        def callback():
-            this.user.update_user(user)
 
         if user.email:
-            this.mail.ask(user.email, "Confirm updating your pasword", callback)
+            this.mail.ask(user.email, "Confirm updating your pasword", UPDATE_CALLBACK, user)
         elif user.telegram:
-            this.telegram.ask(user.telegram, "Confirm updating your pasword", callback)
+            this.telegram.ask(user.telegram, "Confirm updating your pasword", UPDATE_CALLBACK, user)
 
     def reset_password(this, username: str):
         user = this.user.get_by_username(username)
 
-        def callback():
-            alphabet = string.ascii_letters + string.digits
-            password = ''.join(secrets.choice(alphabet) for i in range(20)) 
-
-            user.hashed_pasword = get_password_hash(password)
-            this.user.update_user(user)
-
-            if user.email:
-                this.mail.notify(user.email, f"Your new password is {password}")
-            elif user.telegram:
-                this.mail.notify(user.telegram, f"Your new password is {password}")
-
         if user.email:
-            this.mail.ask(user.email, "Confirm resetting your password", callback)
+            this.mail.ask(user.email, "Confirm resetting your password", RESET_PASSWORD_CALLBACK, user)
         elif user.telegram:
-            this.mail.ask(user.email, "Confirm resetting your password", callback)
+            this.mail.ask(user.email, "Confirm resetting your password", RESET_PASSWORD_CALLBACK, user)
 
     def update_confirmation(this, user_id: UUID, email: NameEmail | None = None, telegram: str | None = None):
         user = this.user.get_user(user_id)
 
-        def callback():
-            if email:
-                user.email = email
-
-                def callback_mail():
-                    this.user.update_user(user)
-
-                this.mail.confirm_address(email, "Confirm your new confirmation source", callback_mail)
-            elif telegram:
-                user.telegram = telegram
-
-                def callback_telegram():
-                    this.user.update_user(user)
-                
-                this.telegram.confirm_address(telegram, "Confirm your new confirmation source", callback_telegram)
+        args = UpdateConfirmationArguments(user, email, telegram)
 
         if user.email:
-            this.mail.ask(user.email, "Confirm updating your confirmation source", callback)
+            this.mail.ask(user.email, "Confirm updating your confirmation source", UPDATE_CONFIRMATION_CALLBACK, args)
         elif user.telegram:
-            this.telegram.notify(user.telegram, "Confirm updating your confirmation source", callback)
+            this.telegram.notify(user.telegram, "Confirm updating your confirmation source", UPDATE_CONFIRMATION_CALLBACK, args)
