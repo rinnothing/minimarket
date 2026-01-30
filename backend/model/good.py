@@ -12,5 +12,5 @@ class Good(BaseModel):
     location: Coordinate | None = None
     owner_id: UUID
 
-def GoodsList(BaseModel):
+class GoodsList(BaseModel):
     array: list[Good]

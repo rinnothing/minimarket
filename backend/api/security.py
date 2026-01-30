@@ -11,7 +11,9 @@ from fastapi.security import OAuth2PasswordBearer
 
 from config import config
 
-from model import User as UserModel
+from model import User
+
+from usecases.users import UserUsecase
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/users/authorize")
 
@@ -32,12 +34,15 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: str | None = None
+    
+# something resembling singleton
+_user_usecase: UserUsecase | None = None
 
-# replace with actual usecase
-def get_user(db, username: str) -> UserModel:
-    pass
+def init(user_usecase: UserUsecase) -> Annotated:
+    global _user_usecase
+    _user_usecase = user_usecase
 
-async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> UserModel:
+async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -51,9 +56,9 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Use
         token_data = TokenData(username=username)
     except InvalidTokenError:
         raise credentials_exception
-    user = get_user(None, username=token_data.username)
+    user = _user_usecase.get_by_username(token_data.username)
     if user is None:
         raise credentials_exception
     return user
 
-AuthorizedUser = Annotated[UserModel, Depends(get_current_user)]
+AuthorizedUser = Annotated[User, Depends(get_current_user)]

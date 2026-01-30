@@ -146,6 +146,9 @@ class UserUsecase:
     def get_user(this, id: UUID) -> User:
         return this.user.get_user(id)
     
+    def get_by_username(this, username: str) -> User:
+        return this.user.get_by_username(username)
+    
     def update_user_info(this, id: UUID, name: str | None = None, active_time: str | None = None) -> User:
         user = this.user.update_user_info(this, id, name, active_time)
         logger.info("updated user %s", safe_print_user(user))

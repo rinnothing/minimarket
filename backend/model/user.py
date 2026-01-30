@@ -3,8 +3,8 @@ from uuid import UUID
 from pydantic import BaseModel, NameEmail
 
 class ActiveTime(BaseModel):
-    fromHour: int
-    toHour: int
+    from_hour: int
+    to_hour: int
 
 class User(BaseModel):
     id: UUID
