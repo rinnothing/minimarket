@@ -1,5 +1,6 @@
 name: minimarket
 env: dev
+domain: localhost
 security:
   algorithm: HS256
   access_token_expire_minutes: 30

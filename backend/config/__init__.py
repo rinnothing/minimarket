@@ -19,6 +19,7 @@ class EnvEnum(str, Enum):
 class Settings(BaseSettings):
     name: str
     env: EnvEnum = EnvEnum.prod
+    domain: str
 
     security: SecuritySettings
     oapi: OAPISettings

@@ -18,34 +18,34 @@ class ActionNotExistsError(Exception):
     Attributes:
         action_id -- given action id
     """
-    def __init__(this, action_id):
-        this.action_id = action_id
-        super().__init__(f"Action with id {this.action_id} doesn't exist")
+    def __init__(self, action_id):
+        self.action_id = action_id
+        super().__init__(f"Action with id {self.action_id} doesn't exist")
 
 class LateExecutor:
     """
     This class allows to store action that should be executed later
     """
-    def __init__(this, arg_storage: TaskArgumentStorage):
-        this.tasks_action_dict = dict()
-        this.arg_storage = arg_storage
+    def __init__(self, arg_storage: TaskArgumentStorage):
+        self.tasks_action_dict = dict()
+        self.arg_storage = arg_storage
 
-    def register_task(this, action_id, action):
-        this.tasks_action_dict[action_id] = action
+    def register_task(self, action_id, action):
+        self.tasks_action_dict[action_id] = action
         logger.debug("registered action with id %s", action_id)
 
-    def put_task(this, action_id, args) -> UUID:
-        id = this.arg_storage.put(action_id, args)
+    def put_task(self, action_id, args) -> UUID:
+        id = self.arg_storage.put(action_id, args)
         logger.debug("put new task with aciton_id = %s, id = %s and args = %s", action_id, id, args)
         return id
     
-    def execute_task(this, task_id):
-        action_id, args = this.arg_storage.get(task_id)
+    def execute_task(self, task_id):
+        action_id, args = self.arg_storage.get(task_id)
 
-        if action_id not in this.tasks_action_dict:
+        if action_id not in self.tasks_action_dict:
             logger.error("action %s not found", action_id)
             raise ActionNotExistsError(action_id)
 
-        action_func = this.tasks_action_dict[action_id]
+        action_func = self.tasks_action_dict[action_id]
         action_func(args)
         logger.debug("executed task %s of action %s with args %s", task_id, action_id, args)

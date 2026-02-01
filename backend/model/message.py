@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, PositiveFloat
 
 class Message(BaseModel):
     sender: UUID
