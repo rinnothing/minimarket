@@ -4,5 +4,9 @@ domain: localhost
 security:
   algorithm: HS256
   access_token_expire_minutes: 30
+postgres:
+  url: localhost
+  database: minimarket
+  username: admin
 oapi:
   oapi_path: /oapi

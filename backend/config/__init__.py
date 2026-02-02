@@ -9,6 +9,12 @@ class SecuritySettings(BaseModel):
     algorithm: str
     access_token_expire_minutes: PositiveInt = 30
 
+class Postgres(BaseModel):
+    username: str
+    password: str
+    url: str
+    database: str
+
 class OAPISettings(BaseModel):
     oapi_path: str
 
@@ -23,6 +29,7 @@ class Settings(BaseSettings):
 
     security: SecuritySettings
     oapi: OAPISettings
+    postgres: Postgres
 
     @classmethod
     def settings_customise_sources(
