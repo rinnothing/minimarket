@@ -24,7 +24,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     else:
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, config.security.secret_key, algorithm=config.security.algorithm)
+    encoded_jwt = jwt.encode(to_encode, config.security.secretkey, algorithm=config.security.algorithm)
     return encoded_jwt
 
 class Token(BaseModel):
@@ -49,7 +49,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Use
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, config.security.secret_key, algorithms=[config.security.algorithm])
+        payload = jwt.decode(token, config.security.secretkey, algorithms=[config.security.algorithm])
         username = payload.get("sub")
         if username is None:
             raise credentials_exception

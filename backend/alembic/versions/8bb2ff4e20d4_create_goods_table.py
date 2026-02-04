@@ -13,7 +13,6 @@ from sqlalchemy.sql import text
 from geoalchemy2 import Geography
 
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.dialects.postgresql import pg_func
 
 
 # revision identifiers, used by Alembic.
@@ -28,18 +27,16 @@ def upgrade() -> None:
     op.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
     op.create_table(
         'goods',
-        sa.Column('id', UUID(as_uuid=True), primary_key=True, server_default=pg_func.gen_random_uuid()),
+        sa.Column('id', UUID(as_uuid=True), primary_key=True, server_default=sa.func.gen_random_uuid()),
         sa.Column('name', sa.String(150), unique=True, nullable=False),
         sa.Column('description', sa.String(1000)),
         sa.Column('price', sa.Float()),
         sa.Column('images', sa.ARRAY(sa.String(500))),
-        sa.Column('location', Geography(geometry_type='POINT'), srid=4326),
+        sa.Column('location', Geography(geometry_type='POINT', srid=4326)),
         sa.Column('owner_id', UUID(as_uuid=True), nullable=False),
         sa.Column('created_at', sa.DateTime(), server_default=sa.func.now()),
         sa.Column('updated_at', sa.DateTime(), server_onupdate=sa.func.now())
     )
-
-    op.create_index('idx_goods_location', 'goods', ['location'], postgresql_using='gist')
 
     op.create_foreign_key(
         'fk_goods_owner_id_users',
@@ -55,6 +52,5 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Downgrade schema."""
     op.drop_constraint('fk_goods_owner_id_users', 'goods', type_='foreignkey')
-    op.drop_index('idx_goods_location', table_name='goods')
     op.drop_table('goods')
     op.execute(text("DROP EXTENSION IF EXISTS postgis CASCADE;"))

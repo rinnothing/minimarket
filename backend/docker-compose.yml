@@ -1,0 +1,15 @@
+name: minimarket
+
+services:
+  db:
+    image: postgis/postgis
+    shm_size: 128mb
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    env_file:
+      - .env
+    ports:
+      - 5432:5432 # probably better to comment that back in prod
+
+volumes:
+  postgres_data:

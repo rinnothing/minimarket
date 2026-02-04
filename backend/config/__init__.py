@@ -5,7 +5,7 @@ from pydantic import BaseModel, PositiveInt
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, YamlConfigSettingsSource, DotEnvSettingsSource
 
 class SecuritySettings(BaseModel):
-    secret_key: str
+    secretkey: str
     algorithm: str
     access_token_expire_minutes: PositiveInt = 30
 
@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     ) -> tuple[PydanticBaseSettingsSource, ...]:
         return (
             YamlConfigSettingsSource(settings_cls, yaml_file="config/config.yaml"),
-            DotEnvSettingsSource(settings_cls, env_file="config/.env", env_nested_delimiter="-"),
+            DotEnvSettingsSource(settings_cls, env_file=".env", env_nested_delimiter="_", case_sensitive=False),
             env_settings
         )
 

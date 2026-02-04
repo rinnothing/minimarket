@@ -29,6 +29,9 @@ target_metadata = None
 # ... etc.
 
 
+DB_URL = f"postgresql+psycopg2://{pg.username}:{pg.password}@{pg.url}/{pg.database}"
+config.set_main_option("sqlalchemy.url", DB_URL)
+
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
 
@@ -42,9 +45,8 @@ def run_migrations_offline() -> None:
 
     """
     # url = config.get_main_option("sqlalchemy.url")
-    url = f"postgresql+psycopg2://{pg.username}:{pg.password}@{pg.url}/{pg.database}"
     context.configure(
-        url=url,
+        url=DB_URL,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
