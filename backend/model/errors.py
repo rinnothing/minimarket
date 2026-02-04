@@ -40,3 +40,20 @@ class GoodNotBelongsError(Exception):
         self.good_id = good_id
         self.user_id = user_id
         super().__init__(f"Trying to change data of good {self.good_id} that doesn't belong to user {self.user_id}")
+
+class UserNotFoundError(Exception):
+    """Exception raised when no user found by the search (either by uuid or by username)
+    
+    Attributes:
+        user_id -- id of user
+        username -- username of user
+    """
+
+    def __init__(self, user_id = None, username = None):
+        self.user_id = user_id
+        self.username = username
+        if self.user_id:
+            err_text = f"User with such id {self.user_id} not found"
+        else:
+            err_text = f"User with such username {self.username} not found"
+        super().__init__(err_text)

@@ -10,7 +10,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 
 # revision identifiers, used by Alembic.
@@ -24,7 +24,7 @@ def upgrade() -> None:
     """Upgrade schema."""
     op.create_table(
         'users',
-        sa.Column('id', UUID(as_uuid=True), primary_key=True, server_default=sa.func.gen_random_uuid()),
+        sa.Column('id', PG_UUID(as_uuid=True), primary_key=True, server_default=sa.func.gen_random_uuid()),
         sa.Column('name', sa.String(50), unique=True, nullable=False),
         sa.Column('hashed_password', sa.String(255), nullable=False),
         sa.Column('active_from', sa.Integer()),
