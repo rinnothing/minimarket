@@ -4,7 +4,8 @@ from uuid import UUID
 from pydantic import NameEmail
 
 import sqlalchemy as sa
-from sqlalchemy import Connection, insert, update, select
+from sqlalchemy import insert, update, select
+from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 users_table = sa.Table(
     'users',
-    sa.Metadata(),
+    sa.MetaData(),
     sa.Column('id', PG_UUID(as_uuid=True), primary_key=True, server_default=sa.func.gen_random_uuid()),
     sa.Column('name', sa.String(50), unique=True, nullable=False),
     sa.Column('hashed_password', sa.String(255), nullable=False),
@@ -43,7 +44,7 @@ def user_from_row(tuple_like: tuple) -> User:
     )
 
 class UsersRepo(UserRepoInterface):
-    def add_nonactive(self, conn: Connection, user: User) -> User:
+    async def add_nonactive(self, conn: AsyncConnection, user: User) -> User:
         stmt = insert(users_table).values(
             name=user.name,
             hashed_password=user.hashed_pasword,
@@ -57,7 +58,7 @@ class UsersRepo(UserRepoInterface):
         logger.debug("formed add_nonactive request: %s", stmt)
 
         try:
-            result = conn.execute(stmt)
+            result = await conn.execute(stmt)
         except Exception as e:
             logger.info("failed to add user %s error %s", user, e)
             raise e
@@ -65,43 +66,42 @@ class UsersRepo(UserRepoInterface):
         logger.info("added non-active user %s", new_user)
         return new_user
 
-    def activate(self, conn: Connection, id: UUID):
+    async def activate(self, conn: AsyncConnection, id: UUID):
         stmt = update(users_table).where(users_table.c.id == id).values(active=True)
         logger.debug("formed activate request: %s", stmt)
 
         # it would also be good to check for error type and reraise with my own error types
         try:
-            conn.execute(stmt)
+            await conn.execute(stmt)
         except Exception as e:
             logger.info("failed to activate user with id %s error %s", id, e)
             raise e
 
         logger.info("successfully activated user with id %s", id)
 
-
-    def is_mail_used(self, conn: Connection, email: NameEmail) -> bool:
+    async def is_mail_used(self, conn: AsyncConnection, email: NameEmail) -> bool:
         stmt = select(sa.func.count("*")).select_from(users_table).where(users_table.c.email == email)
         logger.debug("formed is_mail_used request: %s", stmt)
 
-        result = conn.execute(stmt)
+        result = await conn.execute(stmt)
         used = result.first[0] != 0
         logger.debug("is_mail_used for %s: %s", email, used)
         return used
 
-    def is_telegram_used(self, conn: Connection, telegram: str) -> bool:
+    async def is_telegram_used(self, conn: AsyncConnection, telegram: str) -> bool:
         stmt = select(sa.func.count("*")).select_from(users_table).where(users_table.c.telegram == telegram)
         logger.debug("formed is_telegram_used request: %s", stmt)
 
-        result = conn.execute(stmt)
+        result = await conn.execute(stmt)
         used = result.first[0] != 0
         logger.debug("is_telegram_used for %s: %s", telegram, used)
         return used
 
-    def get_user(self, conn: Connection, uuid: UUID) -> User:
+    async def get_user(self, conn: AsyncConnection, uuid: UUID) -> User:
         stmt = select(users_table).where(users_table.c.id == uuid)
         logger.debug("formed get_user request: %s", stmt)
 
-        result = conn.execute(stmt)
+        result = await conn.execute(stmt)
         
         if result.first:
             user = user_from_row(result.first)
@@ -112,11 +112,11 @@ class UsersRepo(UserRepoInterface):
         logger.debug("received user by id %s: %s", uuid, safe_print_user(user))
         return user
 
-    def get_by_username(self, conn: Connection, username: str) -> User:
+    async def get_by_username(self, conn: AsyncConnection, username: str) -> User:
         stmt = select(users_table).where(users_table.c.name == username)
         logger.debug("formed get_by_username request: %s", stmt)
 
-        result = conn.execute(stmt)
+        result = await conn.execute(stmt)
         
         if result.first:
             user = user_from_row(result.first)
@@ -127,7 +127,7 @@ class UsersRepo(UserRepoInterface):
         logger.debug("received user by username %s: %s", username, safe_print_user(user))
         return user
 
-    def update_user_info(self, conn: Connection, uuid: UUID, name: str | None = None, active_time: ActiveTime | None = None) -> User:
+    async def update_user_info(self, conn: AsyncConnection, uuid: UUID, name: str | None = None, active_time: ActiveTime | None = None) -> User:
         stmt = update(users_table).where(users_table.c.id == uuid)
         if name and active_time:
             stmt = stmt.values(name=name, active_from=active_time.from_hour, to_hour=active_time.to_hour)
@@ -140,7 +140,7 @@ class UsersRepo(UserRepoInterface):
         logger.debug("formed update_user_info request: %s", stmt)
 
         try:
-            result = conn.execute(stmt)
+            result = await conn.execute(stmt)
         except Exception as e:
             logger.info("failed to update user with id %s with data: name = %s, active_time = %s; error %s", uuid, name, active_time, e)
             raise e
@@ -153,7 +153,7 @@ class UsersRepo(UserRepoInterface):
         logger.info("successfully updated user with id %s with data: name = %s, active_time = %s; result = %s", uuid, name, active_time, user)
         return user
 
-    def update_user(self, conn: Connection, user: User) -> User:
+    async def update_user(self, conn: AsyncConnection, user: User) -> User:
         stmt = update(users_table).where(users_table.c.id == user.id).values(
             name=user.name,
             hashed_password=user.hashed_pasword,
@@ -166,7 +166,7 @@ class UsersRepo(UserRepoInterface):
         logger.debug("formed update_user request: %s", stmt)
 
         try:
-            result = conn.execute(stmt)
+            result = await conn.execute(stmt)
         except Exception as e:
             logger.info("failed to update user %s; error %s", user, e)
             raise e

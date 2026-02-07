@@ -57,3 +57,14 @@ class UserNotFoundError(Exception):
         else:
             err_text = f"User with such username {self.username} not found"
         super().__init__(err_text)
+
+class GoodNotFoundError(Exception):
+    """Exception raised when no good found by uuid
+    
+    Attributes:
+        good_id -- id of good
+    """
+
+    def __init__(self, good_id):
+        self.good_id = good_id
+        super().__init__(f"Good with such id {self.good_id} not found")
